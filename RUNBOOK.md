@@ -19,10 +19,15 @@
    - 環境変数 `SOCIALDATA_API_KEY` と `TYPEFULLY_API_KEY` を設定する（**絶対にAPIキーをgitにコミットしない・チャットに貼らない**。環境変数として設定する）
 4. 設定後、次回のセッションでこのRunbookの手順①〜⑦がフルで動くようになる
 
-## 日次ルーティン（7ステップ）
+## 日次ルーティン（8ステップ）
 
 ```
 ① fetch      python3 scripts/fetch_today.py     … 自分の数字+競合の数字を取得（SOCIALDATA_API_KEY必須）
+①.5 analyze  data/YYYY-MM-DD.json の監視アカウント投稿から、閲覧数上位1〜3本をAI(Claude)が読んで
+              構造・テクニックを抽出し、banks/format_bank.md の「外部の型メモ」に書き足す。
+              「個人情報・誹謗中傷の禁止」「権威づけは実績ベースのみ」等の安全ルールは通常の反映プロセスと同様に適用する。
+              明確に新しい型だと判断できるものは writer_rules.md の構文パターンに正式追加してよいが、
+              その場合はこのステップ内で完結させず、本人にチャットで一言報告してから追加する
 ② report     python3 scripts/daily_report.py    … 成績表を出す(合格線・型別スコア・競合TOP)
 ③ check      python3 scripts/pre_draft_check.py … テーマ疲労・強ワードのクールダウンを確認（APIなしでも drafts/ の履歴だけで動く）
 ④ 提案       writer_rules.md に沿って5本のドラフトを作成し、チャットに全文表示する
@@ -32,6 +37,8 @@
               承認後、APIが接続済みなら python3 scripts/upload_to_typefully.py drafts/<ファイル> で予約アップ。
               未接続なら、このままチャットからコピペして本人が手動投稿する。
 ```
+
+**①.5について**: これは`fetch_today.py`が返す生データ（投稿本文＋数値）をAIが毎回読んで判断するステップで、Pythonスクリプトでは自動化していない（構文の解析は数値処理ではなく読解・判断が必要なため）。SocialData API未接続の間はこのステップ自体が実行できず、これまで通り「本人がポストを貼ってくれたら分析する」手動フローが唯一の反映経路になる。
 
 ## 承認について（重要）
 
