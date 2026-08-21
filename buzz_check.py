@@ -25,6 +25,7 @@ NG_ENDING_PATTERNS = [
 ]
 
 POST_HEADER_RE = re.compile(r"^【投稿(\d+)｜([^】]+)】\s*$")
+ANY_HEADER_RE = re.compile(r"^【[^】]+】\s*$")
 TWEET_MARK_RE = re.compile(r"^\((\d+)/(\d+)\)\s?(.*)$")
 
 
@@ -44,10 +45,16 @@ def split_posts(lines):
     posts = {}
     current = None
     for line in lines:
-        m = POST_HEADER_RE.match(line.strip())
+        stripped = line.strip()
+        m = POST_HEADER_RE.match(stripped)
         if m:
             current = m.group(1)
             posts[current] = {"label": m.group(2), "body_lines": []}
+            continue
+        if ANY_HEADER_RE.match(stripped):
+            # 【画像メモ】【手動投稿メモ】等、投稿本体ではない後書きセクションの開始。
+            # 以降の行が直前の投稿の本文に混入しないよう、取り込みを止める。
+            current = None
             continue
         if current is not None:
             posts[current]["body_lines"].append(line)
