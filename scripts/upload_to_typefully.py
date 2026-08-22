@@ -8,12 +8,12 @@ upload_to_typefully.py — 承認済みドラフトをTypefullyに予約投稿�
 - 環境変数 TYPEFULLY_SOCIAL_SET_ID が設定されていること（Typefully側でXアカウントを紐付けた social set のID）
 - このセッション/環境のネットワークポリシーで api.typefully.com への通信が許可されていること
 
-**注意**: ネットワーク制限のためTypefully公式ドキュメント(https://typefully.com/docs/api)を
-直接確認できない状態で、検索結果から得られた仕様（2026年8月時点、API v2）をもとに書いている。
-初回実行時にエラーが出た場合は、公式ドキュメントと突き合わせて調整すること。
+**API仕様（2026-08-22に実APIで疎通確認済み。API v2）**:
 
-- 認証: `Authorization: Bearer {API_KEY}`
-- エンドポイント: POST https://api.typefully.com/v2/social-sets/{social_set_id}/drafts
+- 認証: `Authorization: Bearer {API_KEY}`（v1はAPIキー利用が停止済み。必ずv2を使う）
+- 作成: POST https://api.typefully.com/v2/social-sets/{social_set_id}/drafts
+- 削除: DELETE https://api.typefully.com/v2/social-sets/{social_set_id}/drafts/{draft_id}
+- 一覧: GET https://api.typefully.com/v2/social-sets/{social_set_id}/drafts
 - ボディ例:
     {
       "platforms": {
@@ -22,11 +22,14 @@ upload_to_typefully.py — 承認済みドラフトをTypefullyに予約投稿�
           "posts": [{"text": "..."}, {"text": "..."}]
         }
       },
-      "schedule_date": "2026-08-21T09:00:00+09:00"
+      "publish_at": "2026-08-21T09:00:00+09:00"
     }
+- 予約日時のフィールド名は `publish_at`（`schedule_date` / `scheduled_date` は拒否される）。
+  ISO8601の日時のほか、`"now"` `"next-free-slot"` の文字列も受け付ける。
+- 未知のフィールドを含めると 422 VALIDATION_ERROR になる（extra_forbidden）。
 
 使い方:
-    python3 scripts/upload_to_typefully.py drafts/2026-08-21_0900_senorinka_案.txt --post 1 --at 2026-08-21T09:00:00+09:00
+    python3 scripts/upload_to_typefully.py drafts/2026-08-21_0900_senorinka_案.txt --post 1 --at 2026-08-21T09:00:00+09:00 --confirm-approved
     （--post で 【投稿N｜...】 のNを指定。1本ずつアップする想定）
 """
 
@@ -93,7 +96,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("draft_path")
     parser.add_argument("--post", required=True, help="アップする投稿番号（【投稿N】のN）")
-    parser.add_argument("--at", required=True, help="予約日時 (ISO8601, 例: 2026-08-21T09:00:00+09:00)")
+    parser.add_argument(
+        "--at",
+        required=True,
+        help='予約日時 (ISO8601, 例: 2026-08-21T09:00:00+09:00 / "now" / "next-free-slot")',
+    )
     parser.add_argument(
         "--confirm-approved",
         action="store_true",
@@ -130,7 +137,7 @@ def main():
                 "posts": [{"text": t} for t in tweets],
             }
         },
-        "schedule_date": args.at,
+        "publish_at": args.at,
     }
 
     url = f"{API_BASE}/v2/social-sets/{social_set_id}/drafts"

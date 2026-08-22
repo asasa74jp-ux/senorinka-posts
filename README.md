@@ -28,5 +28,6 @@ banks/
 
 ## 現状
 
-チャットでのドラフト表示・本人による手動投稿までが稼働中。
-SocialData / Typefully のAPI接続は未設定（`RUNBOOK.md` 参照）。
+SocialData / Typefully のAPI接続は完了（2026-08-22 疎通確認済み、`RUNBOOK.md` 参照）。
+ドラフト生成 → 本人による全文承認 → Typefullyへの予約アップまで通る。
+承認は接続後も必須（`CLAUDE.md` の絶対条件）。

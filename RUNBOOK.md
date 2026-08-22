@@ -5,19 +5,30 @@
 | 項目 | 状態 |
 | --- | --- |
 | ドラフト生成（チャット表示） | 稼働中 |
-| SocialData API（自分・競合の数値取得） | 未接続（APIキー未設定＋このセッションのネットワークポリシーが api.socialdata.tools への通信を拒否） |
-| Typefully API（予約投稿アップロード） | 未接続（APIキー未設定＋このセッションのネットワークポリシーが api.typefully.com への通信を拒否） |
+| SocialData API（自分・競合の数値取得） | 接続済み（2026-08-22 疎通確認。`SOCIALDATA_API_KEY` 設定済み・api.socialdata.tools 通信可） |
+| Typefully API（予約投稿アップロード） | 接続済み（2026-08-22 疎通確認。social set: 327587 / @senorinka） |
 
-未接続の間は、①〜③・⑤〜⑥を省略し、④の提案（ドラフト作成）→⑦の人間承認→**本人が手動でXにコピペ投稿**、という運用になる。
+接続済みなので、日次ルーティン①〜⑦をフルで回せる。⑦の**人間による全文承認は接続後も省略しない**（「承認について」参照）。
+※ Typefullyの公式ドキュメント(https://typefully.com/docs/api)自体はネットワークポリシー外のため閲覧不可。
+　 API仕様は `scripts/upload_to_typefully.py` のdocstringに実測ベースで記録している。
 
-## 接続を有効にする手順（本人がやること）
+## 接続設定（完了済み・再設定が必要になったとき用）
 
-1. SocialData（https://socialdata.tools）でアカウント作成しAPIキーを取得する
-2. Typefully（https://typefully.com）でアカウント作成しAPIキーを取得する（無料枠あり）
-3. このプロジェクトが動いているClaude Code on the webの環境設定（Web UI）で、
-   - ネットワークポリシーに `api.socialdata.tools` と `api.typefully.com` への通信を許可する項目を追加する
-   - 環境変数 `SOCIALDATA_API_KEY` と `TYPEFULLY_API_KEY` を設定する（**絶対にAPIキーをgitにコミットしない・チャットに貼らない**。環境変数として設定する）
-4. 設定後、次回のセッションでこのRunbookの手順①〜⑦がフルで動くようになる
+Claude Code on the web の環境設定（Web UI）で、以下が設定されている。
+
+- ネットワークポリシーの許可リスト: `api.socialdata.tools` / `api.typefully.com`
+- 環境変数: `SOCIALDATA_API_KEY` / `TYPEFULLY_API_KEY` / `TYPEFULLY_SOCIAL_SET_ID`
+  （**絶対にAPIキーをgitにコミットしない・チャットに貼らない**。環境変数として設定する）
+
+接続確認のしかた（キーは表示せずステータスだけ見る）:
+
+```
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer $TYPEFULLY_API_KEY" \
+  https://api.typefully.com/v2/social-sets
+```
+
+200 が返れば接続OK。401/403ならキー、000や403 CONNECTならネットワークポリシー側を疑う。
 
 ## 日次ルーティン（8ステップ）
 
@@ -34,11 +45,11 @@
 ⑤ ドラフト    決まった案を drafts/YYYY-MM-DD_HHMM_名前_案.txt に保存する
 ⑥ 検査       python3 buzz_check.py drafts/<ファイル>  … 機械チェック(字数・段数・NG・AI感)
 ⑦ 承認→アップ 本文全文を人間（本人）が見て明示的に承認する。
-              承認後、APIが接続済みなら python3 scripts/upload_to_typefully.py drafts/<ファイル> で予約アップ。
-              未接続なら、このままチャットからコピペして本人が手動投稿する。
+              承認後、python3 scripts/upload_to_typefully.py drafts/<ファイル> --post N --at <ISO8601> --confirm-approved で予約アップ。
+              （--confirm-approved は本人の全文承認が取れている場合だけ付ける。手動投稿に切り替えてもよい）
 ```
 
-**①.5について**: これは`fetch_today.py`が返す生データ（投稿本文＋数値）をAIが毎回読んで判断するステップで、Pythonスクリプトでは自動化していない（構文の解析は数値処理ではなく読解・判断が必要なため）。SocialData API未接続の間はこのステップ自体が実行できず、これまで通り「本人がポストを貼ってくれたら分析する」手動フローが唯一の反映経路になる。
+**①.5について**: これは`fetch_today.py`が返す生データ（投稿本文＋数値）をAIが毎回読んで判断するステップで、Pythonスクリプトでは自動化していない（構文の解析は数値処理ではなく読解・判断が必要なため）。SocialData API接続後は①のデータを使ってこのステップを回せる（本人がポストを貼ってくれた場合の手動分析も引き続き有効）。
 
 ## 承認について（重要）
 

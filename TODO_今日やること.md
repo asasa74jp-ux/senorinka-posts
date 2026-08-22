@@ -5,25 +5,20 @@
 - [ ] 今夜の投稿を出す（さっき渡した2案のどちらかをコピペ）
       → できていなくても明日以降の自動生成は止まりません。焦らなくて大丈夫です。
 
-## 時間があるとき・任意（締切なし）
+## 完了: API接続（2026-08-22）
 
-自動投稿（Typefully予約アップ）＋競合の自動解析を有効にしたい場合のみ、以下を順番に。
-今日じゃなくてOKです。
+SocialData / Typefully の接続はテスト済みで、もうやることはありません。
 
-1. SocialData（https://socialdata.tools）でアカウント作成 → APIキー取得
-2. Typefully（https://typefully.com）でアカウント作成 → APIキー取得（無料枠あり）
-3. Claude Code on the webの、このプロジェクトの環境設定（Web UI）を開く
-   - ネットワークポリシーに `api.socialdata.tools` と `api.typefully.com` を許可リスト追加
-   - 環境変数に以下を登録（**チャットやgitには絶対に貼らない**）
-     - `SOCIALDATA_API_KEY`
-     - `TYPEFULLY_API_KEY`
-     - `TYPEFULLY_SOCIAL_SET_ID`（TypefullyでXアカウントを紐付けた後にわかる）
-4. `scripts/accounts.json` の `own_handle` を、せのりんかの実際のXハンドルに書き換える
-   （追いたい競合アカウントがあれば `watch_handles` にも追加。1個あたりツイート数×$0.0002の課金）
-5. 設定が終わったら、このチャットで「設定終わったよ」と言ってください
-   → 私が接続テストして、動くか確認します
+- [x] SocialData APIキー設定（疎通OK）
+- [x] Typefully APIキー・social set ID設定（疎通OK / social set: @senorinka）
+- [x] ネットワークポリシー許可（api.socialdata.tools / api.typefully.com）
+- [x] `scripts/accounts.json` の `own_handle` = `senorinka`
+- [x] 予約アップの往復テスト（テスト用ドラフトを作成→確認→削除済み。Typefully側に残っていません）
+
+これで「承認したら予約投稿まで自動」が使えます。
+ただし**本文全文を見て承認するステップは今まで通り必須**です（勝手に投稿されることはありません）。
 
 ## 参考: 今の運用で変わらないこと
 
 - 毎朝9時(JST)、5本の下書きがこのチャットに自動で出る（← これは上記と無関係にずっと動きます）
-- 投稿は引き続き手動コピペでOK。上記4ステップをやらない限り、自動投稿は一切始まりません
+- 投稿は手動コピペでもOK。自動の予約アップを使う場合も、本人が全文を見て承認するまで一切アップされません
