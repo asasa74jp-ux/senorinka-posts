@@ -8,13 +8,15 @@ upload_to_typefully.py — 承認済みドラフトをTypefullyに予約投稿�
 - 環境変数 TYPEFULLY_SOCIAL_SET_ID が設定されていること（Typefully側でXアカウントを紐付けた social set のID）
 - このセッション/環境のネットワークポリシーで api.typefully.com への通信が許可されていること
 
-**注意**: ネットワーク制限のためTypefully公式ドキュメント(https://typefully.com/docs/api)を
-直接確認できない状態で、検索結果から得られた仕様（2026年8月時点、API v2）をもとに書いている。
-初回実行時にエラーが出た場合は、公式ドキュメントと突き合わせて調整すること。
+**2026-08-22 修正**: 当初 `schedule_date` というv1相当のフィールド名で実装していたが、
+実際のv2 APIでは `publish_at` が正しいフィールド名だった（WebSearchで確認）。
+`publish_at` は省略可能で、省略すると「予約なしの下書き」としてTypefully側に作成され、
+自動公開されない（"planned"止まり）。ISO8601日時、"now"、"next-free-slot" のいずれかを渡すと
+そのタイミングで公開される。
 
 - 認証: `Authorization: Bearer {API_KEY}`
 - エンドポイント: POST https://api.typefully.com/v2/social-sets/{social_set_id}/drafts
-- ボディ例:
+- ボディ例（予約する場合）:
     {
       "platforms": {
         "x": {
@@ -22,11 +24,13 @@ upload_to_typefully.py — 承認済みドラフトをTypefullyに予約投稿�
           "posts": [{"text": "..."}, {"text": "..."}]
         }
       },
-      "schedule_date": "2026-08-21T09:00:00+09:00"
+      "publish_at": "2026-08-21T09:00:00+09:00"
     }
+  ボディ例（下書きのみ・自動公開しない場合）: 上記から "publish_at" キー自体を省く
 
 使い方:
-    python3 scripts/upload_to_typefully.py drafts/2026-08-21_0900_senorinka_案.txt --post 1 --at 2026-08-21T09:00:00+09:00
+    予約あり: python3 scripts/upload_to_typefully.py drafts/2026-08-21_0900_senorinka_案.txt --post 1 --at 2026-08-21T09:00:00+09:00 --confirm-approved
+    下書きのみ（自動公開なし・接続テスト用）: python3 scripts/upload_to_typefully.py drafts/2026-08-21_0900_senorinka_案.txt --post 1 --draft-only --confirm-approved
     （--post で 【投稿N｜...】 のNを指定。1本ずつアップする想定）
 """
 
@@ -93,7 +97,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("draft_path")
     parser.add_argument("--post", required=True, help="アップする投稿番号（【投稿N】のN）")
-    parser.add_argument("--at", required=True, help="予約日時 (ISO8601, 例: 2026-08-21T09:00:00+09:00)")
+    parser.add_argument(
+        "--at",
+        help="予約日時 (ISO8601, 例: 2026-08-21T09:00:00+09:00 / \"now\" / \"next-free-slot\")。"
+        "省略した場合は --draft-only が必須で、公開予約なしの下書きとして作成する。",
+    )
+    parser.add_argument(
+        "--draft-only",
+        action="store_true",
+        help="publish_atを付けず、自動公開されない下書きとして作成する（接続テスト・内容確認用）",
+    )
     parser.add_argument(
         "--confirm-approved",
         action="store_true",
@@ -104,6 +117,13 @@ def main():
     if not args.confirm_approved:
         print("[STOP] --confirm-approved フラグがありません。")
         print("本人が本文全文を確認・承認するまで、このスクリプトは実行しないでください。")
+        sys.exit(1)
+
+    if not args.at and not args.draft_only:
+        print("[STOP] --at か --draft-only のどちらかを指定してください。")
+        sys.exit(1)
+    if args.at and args.draft_only:
+        print("[STOP] --at と --draft-only は同時に指定できません。")
         sys.exit(1)
 
     path = Path(args.draft_path)
@@ -130,8 +150,9 @@ def main():
                 "posts": [{"text": t} for t in tweets],
             }
         },
-        "schedule_date": args.at,
     }
+    if args.at:
+        body["publish_at"] = args.at
 
     url = f"{API_BASE}/v2/social-sets/{social_set_id}/drafts"
     r = requests.post(
