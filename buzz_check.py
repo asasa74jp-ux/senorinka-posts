@@ -25,7 +25,9 @@ NG_ENDING_PATTERNS = [
 ]
 
 POST_HEADER_RE = re.compile(r"^【投稿(\d+)｜([^】]+)】\s*$")
-ANY_HEADER_RE = re.compile(r"^【[^】]+】\s*$")
+# 投稿本文そのものが「【見出し】」を含むことがある（ランキング型のタイトル等）ため、
+# 汎用の「【...】」ではなく、実際にファイル末尾の後書きとして使われる既知の見出しだけに絞る。
+NON_POST_SECTION_RE = re.compile(r"^【(今日のテーマ|本日の構成|作成メモ(?:（重要）)?|手動投稿メモ|画像メモ)】\s*$")
 TWEET_MARK_RE = re.compile(r"^\((\d+)/(\d+)\)\s?(.*)$")
 
 
@@ -51,7 +53,7 @@ def split_posts(lines):
             current = m.group(1)
             posts[current] = {"label": m.group(2), "body_lines": []}
             continue
-        if ANY_HEADER_RE.match(stripped):
+        if NON_POST_SECTION_RE.match(stripped):
             # 【画像メモ】【手動投稿メモ】等、投稿本体ではない後書きセクションの開始。
             # 以降の行が直前の投稿の本文に混入しないよう、取り込みを止める。
             current = None
