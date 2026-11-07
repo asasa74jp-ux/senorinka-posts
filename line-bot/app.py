@@ -25,30 +25,32 @@ from linebot.v3.messaging import (
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 from bot.content import ContentStore, JsonSource, load_default_tables
+from bot.records import MemoryRecords
 from bot.router import Reply, Router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("senorinka-bot")
 
 
-def build_store() -> ContentStore:
+def build_store_and_records():
     cache_seconds = int(os.environ.get("CONTENT_CACHE_SECONDS", "300"))
     spreadsheet_id = os.environ.get("SPREADSHEET_ID", "").strip()
     sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     if spreadsheet_id and sa_json:
+        from bot.records import SheetRecords
         from bot.sheets import SheetSource
 
-        tabs = list(load_default_tables().keys())
-        log.info("文面はGoogleスプレッドシートから読みます")
-        return ContentStore(SheetSource(spreadsheet_id, sa_json, tabs), cache_seconds)
-    log.warning("SPREADSHEET_ID が未設定のため、content/default_content.json の仮文で動きます")
-    return ContentStore(JsonSource(), cache_seconds)
+        source = SheetSource(spreadsheet_id, sa_json, list(load_default_tables().keys()))
+        log.info("文面・受付記録はGoogleスプレッドシートを使います")
+        return ContentStore(source, cache_seconds), SheetRecords(source)
+    log.warning("SPREADSHEET_ID が未設定のため、仮文で動きます（受付記録はメモリのみ・再起動で消えます）")
+    return ContentStore(JsonSource(), cache_seconds), MemoryRecords()
 
 
 app = Flask(__name__)
-store = build_store()
+store, records = build_store_and_records()
 store.get()  # 起動時に一度読み込む（シートの足りないタブもここで自動作成される）
-router = Router(store)
+router = Router(store, records=records)
 
 channel_secret = os.environ.get("LINE_CHANNEL_SECRET", "")
 access_token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")

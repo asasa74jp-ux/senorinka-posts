@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -34,10 +35,18 @@ class OmikujiEntry:
 
 
 @dataclass
+class Question:
+    order: int
+    text: str
+    choices: list[str]
+
+
+@dataclass
 class Content:
     settings: dict[str, str] = field(default_factory=dict)
     texts: dict[str, str] = field(default_factory=dict)
     omikuji: dict[int, OmikujiEntry] = field(default_factory=dict)
+    questions: list[Question] = field(default_factory=list)
 
     def setting(self, key: str, default: str = "") -> str:
         value = self.settings.get(key, "")
@@ -94,7 +103,18 @@ def parse_content(tables: Tables, defaults: Tables | None = None) -> Content:
             bridge=_cell(row, "診断への橋渡し文"),
         )
 
-    return Content(settings=settings, texts=texts, omikuji=omikuji)
+    questions: list[Question] = []
+    source_rows = rows("診断質問") or defaults.get("診断質問", [])
+    for i, row in enumerate(source_rows):
+        text = _cell(row, "質問文")
+        if not text:
+            continue
+        order = _to_int(_cell(row, "順番"))
+        choices = [c.strip() for c in re.split(r"[/／\n]", _cell(row, "選択肢")) if c.strip()]
+        questions.append(Question(order=order if order is not None else 1000 + i, text=text, choices=choices))
+    questions.sort(key=lambda q: q.order)
+
+    return Content(settings=settings, texts=texts, omikuji=omikuji, questions=questions)
 
 
 class JsonSource:
@@ -121,9 +141,11 @@ class ContentStore:
         self._loaded_at = 0.0
         self._lock = threading.Lock()
 
-    def get(self) -> Content:
+    def get(self, max_age: float | None = None) -> Content:
+        """文面を返す。max_age（秒）を指定すると、それより古ければ読み直す。"""
+        limit = self.cache_seconds if max_age is None else min(max_age, self.cache_seconds)
         with self._lock:
-            expired = time.monotonic() - self._loaded_at >= self.cache_seconds
+            expired = time.monotonic() - self._loaded_at >= limit
             if self._content is None or expired:
                 try:
                     self._content = parse_content(self.source.read_tables())
