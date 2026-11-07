@@ -95,12 +95,12 @@ def test_sheet_values_override_defaults_and_blank_falls_back():
     tables = {
         "文面": [{"キー": "おみくじ_番号の案内", "文面": "差し替えた文"},
                 {"キー": "おみくじ_番号が範囲外", "文面": ""}],
-        "設定": [{"項目": "おみくじのキーワード", "値": "月夜おみくじ"}],
+        "設定": [{"項目": "診断の受付上限", "値": "25"}],
     }
     c = parse_content(tables)
     assert c.text("おみくじ_番号の案内") == "差し替えた文"
     assert c.text("おみくじ_番号が範囲外").startswith("【仮文】")
-    assert c.setting("おみくじのキーワード") == "月夜おみくじ"
+    assert c.setting("診断の受付上限") == "25"
     assert len(c.omikuji) == 12  # おみくじタブが無ければ既定を使う
 
 
@@ -114,9 +114,6 @@ def test_store_survives_source_error():
 
 
 def test_default_content_has_no_banned_words():
-    import json
-    from bot.content import DEFAULT_CONTENT_PATH
-    text = DEFAULT_CONTENT_PATH.read_text(encoding="utf-8")
-    for word in ("必ず", "絶対"):
-        assert word not in text
-    json.loads(text)
+    content = parse_content(load_default_tables())
+    assert "必ず" in content.setting("使わない言葉")  # チェック対象の言葉は設定に入っている
+    assert content.warnings == []

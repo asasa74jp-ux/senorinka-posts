@@ -15,6 +15,8 @@ from .content import Tables, load_default_tables
 
 log = logging.getLogger(__name__)
 
+CHECK_TAB = "チェック結果"
+
 
 def open_spreadsheet(spreadsheet_id: str, service_account_json: str) -> gspread.Spreadsheet:
     client = gspread.service_account_from_dict(json.loads(service_account_json))
@@ -78,15 +80,36 @@ class SheetSource:
         return self._spreadsheet
 
     def read_tables(self) -> Tables:
+        """文面用のタブをまとめて読む（Googleへの問い合わせは2回だけ）。"""
+        spreadsheet = self.spreadsheet
+        titles = {ws.title for ws in spreadsheet.worksheets()}
+        tabs = [t for t in self.tabs if t in titles]
+        if not tabs:
+            return {}
+        # タブ名に記号が入っていても読めるように、'タブ名' の形で指定する
+        result = spreadsheet.values_batch_get([f"'{t}'" for t in tabs])
         tables: Tables = {}
-        for tab in self.tabs:
-            try:
-                ws = self.spreadsheet.worksheet(tab)
-            except gspread.WorksheetNotFound:
-                continue
-            values = ws.get_all_values()
+        for tab, value_range in zip(tabs, result.get("valueRanges", [])):
+            values = value_range.get("values", [])
             if not values:
                 continue
             headers = [h.strip() for h in values[0]]
-            tables[tab] = [dict(zip(headers, row)) for row in values[1:] if any(c.strip() for c in row)]
+            tables[tab] = [
+                dict(zip(headers, row)) for row in values[1:] if any(str(c).strip() for c in row)
+            ]
         return tables
+
+    def write_check_results(self, warnings: list[str]) -> None:
+        """表現チェックの結果を「チェック結果」タブに書く（運用者が確認できるように）。"""
+        spreadsheet = self.spreadsheet
+        try:
+            ws = spreadsheet.worksheet(CHECK_TAB)
+        except gspread.WorksheetNotFound:
+            ws = spreadsheet.add_worksheet(title=CHECK_TAB, rows=100, cols=2)
+        from datetime import datetime, timedelta, timezone
+
+        stamp = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M")
+        lines = warnings or ["問題は見つかりませんでした"]
+        ws.clear()
+        ws.update([["確認日時", "内容"]] + [[stamp, line] for line in lines], "A1",
+                  value_input_option="RAW")

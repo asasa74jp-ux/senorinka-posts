@@ -49,3 +49,17 @@ def test_bad_signature_rejected():
 
 def test_health():
     assert bot_app.app.test_client().get("/health").data == b"ok"
+
+
+def test_follow_event_sends_greeting(monkeypatch):
+    sent = []
+    monkeypatch.setattr(bot_app.MessagingApi, "reply_message", lambda self, req: sent.append(req))
+    body = json.dumps({"destination": "x", "events": [{
+        "type": "follow", "mode": "active", "timestamp": 0, "webhookEventId": "e2",
+        "deliveryContext": {"isRedelivery": False}, "replyToken": "rt",
+        "source": {"type": "user", "userId": "Unew"}, "follow": {"isUnblocked": False}}]})
+    sig = base64.b64encode(hmac.new(b"test-secret", body.encode(), hashlib.sha256).digest()).decode()
+    r = bot_app.app.test_client().post("/callback", data=body, headers={"X-Line-Signature": sig})
+    assert r.status_code == 200
+    assert sent[-1].messages[0].text.startswith("【仮文】友だち追加")
+    assert [i.action.text for i in sent[-1].messages[0].quick_reply.items] == ["おみくじ", "診断"]

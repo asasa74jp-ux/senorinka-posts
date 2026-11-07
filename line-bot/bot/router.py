@@ -9,7 +9,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import timedelta
 
-from .content import Content, ContentStore
+from .content import Content, ContentStore, split_items
 from .records import MemoryRecords, Session, now_jst
 from .state import MemoryState
 
@@ -64,26 +64,26 @@ class Router:
         self._diagnosis_lock = threading.Lock()
 
     # ---- 入口 ----
+    def handle_follow(self, user_id: str) -> list[Reply]:
+        """友だち追加（ブロック解除）されたときのあいさつ。"""
+        content = self.store.get()
+        value = content.setting("あいさつのボタン")
+        buttons = [] if normalize(value) == "なし" else split_items(value)
+        return [Reply(content.text("あいさつ"), buttons[:13])]
+
     def handle_text(self, user_id: str, raw_text: str) -> list[Reply]:
         content = self.store.get()
         text = normalize(raw_text)
-        omikuji_kw = normalize(content.setting("おみくじのキーワード", "おみくじ"))
-        diagnosis_kw = normalize(content.setting("診断のキーワード", "診断"))
 
-        if text == omikuji_kw:
-            try:
-                with self._diagnosis_lock:
-                    self._end_session(user_id)  # 診断の途中でも、おみくじを優先する
-            except Exception:  # noqa: BLE001 - 進行状況が消せなくても、おみくじは出す
-                log.exception("診断の進行状況を消せませんでした")
-            return self._omikuji_start(user_id, content)
+        # 1. 「おみくじ」「診断」に完全一致したら、何の途中でもそれを始める
+        exact_action = next(
+            (k.action for k in content.keywords if k.action and k.keyword == text), ""
+        )
+        if exact_action:
+            return self._run_action(exact_action, user_id, content)
 
+        # 2. 診断の途中なら、送られた文は回答として受け取る（キーワード応答より優先）
         try:
-            if text == diagnosis_kw:
-                self.state.clear(user_id)
-                with self._diagnosis_lock:
-                    return self._diagnosis_start(user_id)
-
             with self._diagnosis_lock:
                 session = self._active_session(user_id)
                 if session is not None:
@@ -92,13 +92,41 @@ class Router:
             log.exception("診断の処理中にエラーが起きました")
             return [Reply(content.text("診断_エラー"))]
 
+        # 3. おみくじの番号待ちなら、番号として受け取る
         if self.state.get(user_id) == OMIKUJI_MODE:
             replies = self._omikuji_answer(user_id, text, content)
             if replies is not None:
                 return replies
 
-        # どれにも当てはまらないときは返信しない（本人が1対1で返すため）
+        # 4. キーワード応答の表（完全一致を先に、そのあと「含む」を表の上から順に）
+        rule = next((k for k in content.keywords if k.keyword == text), None)
+        if rule is None:
+            rule = next((k for k in content.keywords if k.contains and k.keyword in text), None)
+        if rule is not None:
+            if rule.action:
+                return self._run_action(rule.action, user_id, content)
+            if rule.text:
+                return [Reply(rule.text, rule.buttons[:13])]
+
+        # 5. どれにも当てはまらないときは返信しない（本人が1対1で返すため）
         return []
+
+    def _run_action(self, action: str, user_id: str, content: Content) -> list[Reply]:
+        if action == "おみくじ":
+            try:
+                with self._diagnosis_lock:
+                    self._end_session(user_id)  # 診断の途中でも、おみくじを優先する
+            except Exception:  # noqa: BLE001 - 進行状況が消せなくても、おみくじは出す
+                log.exception("診断の進行状況を消せませんでした")
+            return self._omikuji_start(user_id, content)
+        # 診断
+        self.state.clear(user_id)
+        try:
+            with self._diagnosis_lock:
+                return self._diagnosis_start(user_id)
+        except Exception:  # noqa: BLE001
+            log.exception("診断の処理中にエラーが起きました")
+            return [Reply(content.text("診断_エラー"))]
 
     # ---- 機能1：月夜おみくじ ----
     def _omikuji_numbers(self, content: Content) -> list[str]:

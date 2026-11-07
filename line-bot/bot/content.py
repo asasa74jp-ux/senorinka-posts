@@ -42,11 +42,30 @@ class Question:
 
 
 @dataclass
+class KeywordRule:
+    keyword: str
+    contains: bool  # True: 「含む」 / False: 「完全一致」
+    text: str
+    buttons: list[str]
+    action: str  # "" / "おみくじ" / "診断"
+
+
+ACTIONS = {"おみくじ", "診断"}
+
+
+def split_items(value: str) -> list[str]:
+    """「/」「／」や改行で区切られた項目を、リストにする。"""
+    return [c.strip() for c in re.split(r"[/／\n]", value or "") if c.strip()]
+
+
+@dataclass
 class Content:
     settings: dict[str, str] = field(default_factory=dict)
     texts: dict[str, str] = field(default_factory=dict)
     omikuji: dict[int, OmikujiEntry] = field(default_factory=dict)
     questions: list[Question] = field(default_factory=list)
+    keywords: list[KeywordRule] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def setting(self, key: str, default: str = "") -> str:
         value = self.settings.get(key, "")
@@ -110,11 +129,48 @@ def parse_content(tables: Tables, defaults: Tables | None = None) -> Content:
         if not text:
             continue
         order = _to_int(_cell(row, "順番"))
-        choices = [c.strip() for c in re.split(r"[/／\n]", _cell(row, "選択肢")) if c.strip()]
+        choices = split_items(_cell(row, "選択肢"))
         questions.append(Question(order=order if order is not None else 1000 + i, text=text, choices=choices))
     questions.sort(key=lambda q: q.order)
 
-    return Content(settings=settings, texts=texts, omikuji=omikuji, questions=questions)
+    import unicodedata
+
+    keywords: list[KeywordRule] = []
+    source_rows = rows("キーワード応答") or defaults.get("キーワード応答", [])
+    for row in source_rows:
+        keyword = unicodedata.normalize("NFKC", _cell(row, "キーワード"))
+        if not keyword:
+            continue
+        action = _cell(row, "動作")
+        keywords.append(KeywordRule(
+            keyword=keyword,
+            contains=_cell(row, "一致方法") == "含む",
+            text=_cell(row, "返す文面"),
+            buttons=split_items(_cell(row, "ボタン")),
+            action=action if action in ACTIONS else "",
+        ))
+
+    content = Content(settings=settings, texts=texts, omikuji=omikuji, questions=questions,
+                      keywords=keywords)
+    content.warnings = find_banned_words(content)
+    return content
+
+
+def find_banned_words(content: Content) -> list[str]:
+    """「設定」タブの「使わない言葉」が文面に入っていないか調べる。"""
+    words = split_items(content.setting("使わない言葉"))
+    places: list[tuple[str, str]] = []
+    places += [(f"文面「{k}」", v) for k, v in content.texts.items()]
+    for e in content.omikuji.values():
+        places += [(f"おみくじ {e.number}番の本文", e.body), (f"おみくじ {e.number}番の橋渡し文", e.bridge)]
+    places += [(f"診断質問 {q.order}番", q.text + " " + " ".join(q.choices)) for q in content.questions]
+    places += [(f"キーワード応答「{k.keyword}」", k.text + " " + " ".join(k.buttons)) for k in content.keywords]
+    found = []
+    for place, value in places:
+        hits = [w for w in words if w in value]
+        if hits:
+            found.append(f"{place} に「{'」「'.join(hits)}」が入っています")
+    return found
 
 
 class JsonSource:
@@ -148,7 +204,9 @@ class ContentStore:
             expired = time.monotonic() - self._loaded_at >= limit
             if self._content is None or expired:
                 try:
-                    self._content = parse_content(self.source.read_tables())
+                    content = parse_content(self.source.read_tables())
+                    self._report_warnings(content)
+                    self._content = content
                     self._loaded_at = time.monotonic()
                 except Exception:  # noqa: BLE001 - シート障害でもBotは動かし続ける
                     log.exception("文面の読み込みに失敗しました")
@@ -157,6 +215,19 @@ class ContentStore:
                     # 失敗時は30秒後にもう一度読みに行く
                     self._loaded_at = time.monotonic() - max(self.cache_seconds - 30, 0)
             return self._content
+
+    def _report_warnings(self, content: Content) -> None:
+        previous = self._content.warnings if self._content else None
+        if content.warnings == previous:
+            return
+        for w in content.warnings:
+            log.warning("表現チェック: %s", w)
+        report = getattr(self.source, "write_check_results", None)
+        if report:
+            try:
+                report(content.warnings)
+            except Exception:  # noqa: BLE001
+                log.exception("チェック結果をシートに書けませんでした")
 
     def refresh(self) -> None:
         with self._lock:

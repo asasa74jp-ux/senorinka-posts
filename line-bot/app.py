@@ -22,7 +22,7 @@ from linebot.v3.messaging import (
     ReplyMessageRequest,
     TextMessage,
 )
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import FollowEvent, MessageEvent, TextMessageContent
 
 from bot.content import ContentStore, JsonSource, load_default_tables
 from bot.records import MemoryRecords
@@ -108,6 +108,15 @@ def on_text(event: MessageEvent) -> None:
         send_replies(event.reply_token, replies)
     except Exception:  # noqa: BLE001 - 1件の失敗でサーバーを落とさない
         log.exception("メッセージの処理中にエラーが起きました")
+
+
+@handler.add(FollowEvent)
+def on_follow(event: FollowEvent) -> None:
+    user_id = getattr(event.source, "user_id", None) or "unknown"
+    try:
+        send_replies(event.reply_token, router.handle_follow(user_id))
+    except Exception:  # noqa: BLE001
+        log.exception("あいさつの送信中にエラーが起きました")
 
 
 if __name__ == "__main__":

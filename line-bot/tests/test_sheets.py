@@ -43,3 +43,17 @@ def test_keeps_edits_and_appends_only_missing_keys():
     ws = FakeWS("文面", [["キー", "文面", "説明"], ["a", "本人が直した文", ""]])
     ensure_tabs(FakeSS([ws]), DEFAULTS)
     assert ws.values == [["キー", "文面", "説明"], ["a", "本人が直した文", ""], ["b", "B", ""]]
+
+
+class BatchSS(FakeSS):
+    def values_batch_get(self, ranges):
+        return {"valueRanges": [{"values": self.sheets[r.strip("'")].values} for r in ranges]}
+
+
+def test_read_tables_in_one_batch():
+    from bot.sheets import SheetSource
+
+    a = FakeWS("文面", [["キー", "文面"], ["a", "A"], ["", ""], ["b"]])
+    src = SheetSource("id", "{}", ["文面", "おみくじ"])
+    src._spreadsheet = BatchSS([a])
+    assert src.read_tables() == {"文面": [{"キー": "a", "文面": "A"}, {"キー": "b"}]}

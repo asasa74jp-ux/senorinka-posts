@@ -34,7 +34,10 @@ while True:
     except (EOFError, KeyboardInterrupt):
         print()
         break
-    replies = router.handle_text("local-user", text)
+    if text.strip() == "/follow":
+        replies = router.handle_follow("local-user")
+    else:
+        replies = router.handle_text("local-user", text)
     if not replies:
         print("（Bot）※返信なし")
     for r in replies:
