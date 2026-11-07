@@ -45,10 +45,10 @@ def test_switch_off_by_default():
 def test_full_flow_and_record():
     r, recs, _ = make()
     start, a1, a2, done = answer_all(r)
-    assert len(start) == 2 and start[1].text.startswith("【仮文】①")
+    assert len(start) == 2 and start[1].text.startswith("今、彼とは")
     assert "片思い" in start[1].quick_replies
-    assert a1[0].text.startswith("【仮文】②") and a1[0].quick_replies
-    assert a2[0].text.startswith("【仮文】③") and a2[0].quick_replies == []
+    assert a1[0].text.startswith("最後に連絡を") and a1[0].quick_replies
+    assert a2[0].text.startswith("いちばん知りたい") and a2[0].quick_replies == []
     assert "受付番号 1番で承りました" in done[0].text
     assert "数日以内" in done[1].text
     rec = recs.receipts[0]
@@ -126,7 +126,7 @@ def test_restart_with_keyword():
     r.handle_text("u1", "診断")
     r.handle_text("u1", "片思い")
     again = r.handle_text("u1", "診断")
-    assert again[1].text.startswith("【仮文】①")
+    assert again[1].text.startswith("今、彼とは")
     assert recs.sessions["u1"].answers == []
 
 
@@ -144,7 +144,7 @@ def test_numbers_during_diagnosis_are_answers_not_omikuji():
     r.handle_text("u1", "おみくじ")
     r.handle_text("u1", "診断")  # おみくじ待ちは解除
     reply = r.handle_text("u1", "3")
-    assert reply[0].text.startswith("【仮文】②")
+    assert reply[0].text.startswith("最後に連絡を")
 
 
 def test_session_expires(monkeypatch):

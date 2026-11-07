@@ -78,7 +78,7 @@ def test_keywords_inside_diagnosis_are_answers():
     r, _ = make(tables)
     r.handle_text("u1", "診断")
     reply = r.handle_text("u1", "プロフィール")  # キーワードでも診断中は回答
-    assert reply[0].text.startswith("【仮文】②")
+    assert reply[0].text.startswith("最後に連絡を")
     r.handle_text("u1", "1週間以内")
     done = r.handle_text("u1", "彼の気持ち")
     assert "受付番号 1番" in done[0].text
