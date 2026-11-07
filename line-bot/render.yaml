@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: senorinka-line-bot
+    runtime: python
+    plan: free
+    rootDir: line-bot
+    buildCommand: pip install -r requirements.txt
+    # 受付番号の重複を防ぐため、プロセスは1つ（スレッドで同時処理）にしています
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 60
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: SPREADSHEET_ID
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
