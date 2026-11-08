@@ -42,13 +42,13 @@ def build_store_and_records():
 
         source = SheetSource(spreadsheet_id, sa_json, list(load_default_tables().keys()))
         log.info("文面・受付記録はGoogleスプレッドシートを使います")
-        return ContentStore(source, cache_seconds), SheetRecords(source)
+        return ContentStore(source, cache_seconds), SheetRecords(source), source
     log.warning("SPREADSHEET_ID が未設定のため、仮文で動きます（受付記録はメモリのみ・再起動で消えます）")
-    return ContentStore(JsonSource(), cache_seconds), MemoryRecords()
+    return ContentStore(JsonSource(), cache_seconds), MemoryRecords(), None
 
 
 app = Flask(__name__)
-store, records = build_store_and_records()
+store, records, sheet_source = build_store_and_records()
 store.get()  # 起動時に一度読み込む（シートの足りないタブもここで自動作成される）
 router = Router(store, records=records)
 
@@ -86,6 +86,18 @@ def send_replies(reply_token: str, replies: list[Reply]) -> None:
 def health():
     """Renderの稼働確認・スリープ防止用。"""
     return "ok"
+
+
+@app.get("/status")
+def status():
+    """運用者向けの接続チェック。鍵の値は表示しない。"""
+    from bot.status import diagnose
+
+    lines = diagnose(sheet_source)
+    if lines[1].startswith("結果：すべてOK"):
+        store.refresh()  # 直った直後にすぐ文面を読み直す
+    return "\n".join(lines), 200, {"Content-Type": "text/plain; charset=utf-8",
+                                   "Cache-Control": "no-store"}
 
 
 @app.post("/callback")
