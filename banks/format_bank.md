@@ -299,6 +299,16 @@ fetch_today.py（監視12アカウント＋自アカウント）＋SocialData検
   内容は流用不可（実在人物・慰謝料体験の暴露）。yomitsu_nurse「興信所の人から聞いた『女の不倫』」17.4万viewsは
   二次伝聞＋■見出しリスト型で、構造のみ参考。「複雑恋愛」キーワードは引き続き高反応投稿なし（ポジション未占有）。
 
+**URL（2026-11-19分）**:
+- senorinka 誕生月ランキング: https://x.com/senorinka/status/2122840264536621516
+- ayu20060308 運命の人は3人: https://x.com/ayu20060308/status/2122554968343556403 ／ ココ・シャネル: https://x.com/ayu20060308/status/2122958793764204620
+- oneco_uranai 2026年これ手放す: https://x.com/oneco_uranai/status/2121479928180883792
+- umitterx 11月17日の夜: https://x.com/umitterx/status/2122643884069257274
+- Hisui_uraura 11月18・19・20日: https://x.com/Hisui_uraura/status/2122820325217910791
+- no_furin0 モラハラ見破る方法: https://x.com/no_furin0/status/2122967602528219304
+- F7050778373746F 50代の女性: https://x.com/F7050778373746F/status/2122945696177557591
+- yomitsu_nurse 興信所の女の不倫: https://x.com/yomitsu_nurse/status/2122638381104382123
+
 ### 不採用（安全ルールに抵触・流用不可）
 
 - yomitsu_nurse: 上位2投稿とも性的表現を含む有料note訴求。個人情報・下品表現の観点で流用不可

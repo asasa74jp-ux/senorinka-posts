@@ -156,6 +156,11 @@ format_bank.mdへのログは他の型と同様に必須。反応を見て頻度
 
 ## 1日の運用フロー
 
+**朝9時トレンドレポートの出力ルール（2026-11-19 本人指示）**: レポートで取り上げる伸びている投稿には、
+**毎回必ず投稿URLを添える**（形式: `https://x.com/{screen_name}/status/{id_str}`。fetch_today.py・SocialData検索の
+取得データの `user.screen_name` と `id_str` から組み立てる）。チャットのレポート各項目と、
+banks/format_bank.mdへの追記の両方に入れる。PushNotificationの本文にも、主要な1〜3件のURLを入れる。
+
 朝: データ取得→レポート（API接続後）/ 随時: 5本ドラフト作成→本人が全文承認→（承認後）Typefullyへ予約アップ（API接続後）。
 現状（ネットワークポリシーでSocialData/Typefully未接続）は、ドラフトをチャット表示までで止め、本人が手動コピペ投稿する。
 
