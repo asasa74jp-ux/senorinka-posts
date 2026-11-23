@@ -109,8 +109,8 @@ def main():
     )
     parser.add_argument(
         "--platforms",
-        default="x,threads",
-        help="投稿先（カンマ区切り。x / threads）。既定は x,threads（2026-11-23〜 X・Threads同時投稿）",
+        default="x",
+        help="投稿先（カンマ区切り。x / threads）。既定は x（2026-11-24〜 XはClaude、Threadsは本人がMuseで運用）",
     )
     parser.add_argument(
         "--confirm-approved",

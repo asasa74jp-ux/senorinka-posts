@@ -9,15 +9,15 @@
 
 1. **毎朝9時JST**: トレンドレポートを作成し、`reports/YYYY-MM-DD.md`として**mainブランチ**に保存する
    （本人がパソコンのGitHubからいつでも見られるようにするため。本人がmainへの保存を許可済み）。
-2. **毎晩20時JST**: 最新の`reports/`を読んで翌日分3本のドラフトを作成し、スマホに通知して全文を表示する。
+2. **毎晩20時JST**: 最新の`reports/`を読んで翌日分**2本**（本数より質を優先。2026-11-24本人指示）のドラフトを作成し、スマホに通知して全文を表示する。
 3. 本人がそのセッションで全文を読み「OK」等で明示的に承認した場合のみ、
-   `upload_to_typefully.py --confirm-approved`で**X・Threads同時**に予約する（既定 `--platforms x,threads`）。
+   `upload_to_typefully.py --confirm-approved`で**X**に予約する（既定 `--platforms x`。2026-11-24〜、XはClaude担当、Threadsは本人がMuseで運用）。
    承認がない限りアップロードしない（絶対条件のとおり）。部分承認（「1と3だけ」等）はその分だけ予約する。
 
 注意:
 - せのりんかのTypefullyには、本人がMeta社のAIエージェント「Muse」経由でも投稿を予約している
   （1日4本前後）。予約時刻は、Typefully APIで同日の既存予約を確認し、**前後1時間以上ずらす**。
-- Threadsは1投稿500文字まで。超える場合はThreads用に分割するか、本人に確認する。
+- 本人が「Threadsにも」と言った投稿だけ `--platforms x,threads` を付ける（Threadsは1投稿500文字まで）。
 
 ## ミッション
 
