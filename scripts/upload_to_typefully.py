@@ -108,6 +108,11 @@ def main():
         help="publish_atを付けず、自動公開されない下書きとして作成する（接続テスト・内容確認用）",
     )
     parser.add_argument(
+        "--platforms",
+        default="x,threads",
+        help="投稿先（カンマ区切り。x / threads）。既定は x,threads（2026-11-23〜 X・Threads同時投稿）",
+    )
+    parser.add_argument(
         "--confirm-approved",
         action="store_true",
         help="本人が本文を全文確認し承認済みであることを明示するフラグ（必須）",
@@ -143,12 +148,18 @@ def main():
     api_key = get_env("TYPEFULLY_API_KEY")
     social_set_id = get_env("TYPEFULLY_SOCIAL_SET_ID")
 
+    platforms = [p.strip() for p in args.platforms.split(",") if p.strip()]
+    for p in platforms:
+        if p not in ("x", "threads"):
+            print(f"[STOP] 未対応の投稿先です: {p}")
+            sys.exit(1)
+    if "threads" in platforms and any(len(t) > 500 for t in tweets):
+        print("[STOP] Threadsは1投稿500文字までです。500文字を超える投稿があります。")
+        sys.exit(1)
     body = {
         "platforms": {
-            "x": {
-                "enabled": True,
-                "posts": [{"text": t} for t in tweets],
-            }
+            p: {"enabled": True, "posts": [{"text": t} for t in tweets]}
+            for p in platforms
         },
     }
     if args.at:
