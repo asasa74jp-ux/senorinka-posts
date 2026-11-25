@@ -1,0 +1,6 @@
+{
+  "account": {"handle": "jinjivp", "name": "スピ沼ちゃん", "typefully_social_set_id": 369706},
+  "watch_handles": ["mina60mm", "uranai_suki0306", "kaede0623love", "choco_chan111", "mikagesupi777", "spibichan"],
+  "threads_reference": ["warashi_uranai"],
+  "note": "2026-11-25 本人指定。threads_referenceはSocialDataで取得できないため、本人が投稿を貼った時だけ分析する。"
+}
