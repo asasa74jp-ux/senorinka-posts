@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+【2026-11-27〜 使用停止】Typefullyの予約はMuse側に一本化したため、Claudeはこのスクリプトを実行しない（CLAUDE.md参照）。
+
 upload_to_typefully.py — 承認済みドラフトをTypefullyに予約投稿としてアップする
 
 **前提（絶対に飛ばさないこと）**:
